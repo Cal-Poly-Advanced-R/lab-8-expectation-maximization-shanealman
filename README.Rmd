@@ -18,11 +18,13 @@ knitr::opts_chunk$set(
 <!-- badges: start -->
 <!-- badges: end -->
 
-The goal of clust431 is to ...
+The goal of clust431 is to implement EM clustering on a dataset 
 
 ## Installation
 
 You can install the released version of clust431 from [CRAN](https://CRAN.R-project.org) with:
+
+You access the github repository through this link: https://github.com/Cal-Poly-Advanced-R/lab-8-expectation-maximization-shanealman
 
 ``` r
 install.packages("clust431")
@@ -32,23 +34,108 @@ install.packages("clust431")
 library(clust431)
 library(tidyverse)
 library(mvtnorm)
+library(tictoc)
 ```
 
+## EM Clustering Code 
+```{r eval = F}
+em_clust = function(x, k){
+    priors = rep(1/k, k)
+    x = as.matrix(x)
+    if(ncol(x) > 1){
+        x = data.frame(x)
+        means = sample_n(x, k)
+    }else {
+        means = sample(x, k)}
+    x = as.matrix(x)
+    cov.var = vector('list', length = k)
+    for(i in 1:k){
+        if(
+            ncol(x) > 1){cov.var[[i]] = cov(x)
+        }else {
+            cov.var[[i]] = sd(x)}
+    }
+    probs2 = 0
+    probs1 = 1
+    while(sum((probs2 - probs1)^2) > 0.00001){
+        probs1 = probs2
+        probs2 = NULL
+        if(ncol(x) > 1){
+            for(i in 1:k){
+                initprob = dmvnorm(x, as.numeric(means[i,]), cov.var[[i]])
+                probs2 = cbind(probs2, initprob)}
+        } else {
+            for(i in 1:k){
+                initprob = dnorm(x, means[i], cov.var[[i]])
+                probs2 = cbind(probs2, initprob)
+            }
+        }
+        totalpost = 0
+        for(i in 1:k){
+            tempP = priors[i]*probs2[,i]
+            totalpost = totalpost + tempP}
+        posts = NULL
+        for(i in 1:k){
+            initpost = (priors[i]*probs2[,i])/totalpost
+            posts = cbind(posts, initpost)}
+        priors = apply(posts, 2, mean)
+        means = NULL
+        if(ncol(x) > 1){
+            for(i in 1:k){
+                tempM = colSums(posts[,i]*x)/sum(posts[,i])
+                means = rbind(means, tempM)}
+        } else {
+            for(i in 1:k){
+                tempM = sum(posts[,i]*x)/sum(posts[,i])
+                means = c(means, tempM)
+            }
+        }
+        lambda = NULL
+        for(i in 1:k){
+            templambda = posts[,i]/(length(posts[,i])*priors[i])
+            lambda = cbind(lambda, templambda)}
+        cov.var = vector('list', length = k)
+        if(ncol(x) > 1){
+            for(i in 1:k){
+                tempcov.var = 0
+                for(l in 1:nrow(posts)){
+                    initcov.var = lambda[l,i] * ((x[l,] - means[i,]) %*% t(x[l,] - means[i,]))
+                    tempcov.var = tempcov.var + initcov.var}
+                cov.var[[i]] = tempcov.var}
+        } else {
+            cov.var = vector('list', length = k)
+            for(i in 1:k){
+                tempcov.var = 0
+                for(l in 1:nrow(posts)){
+                    initcov.var = lambda[l,i] * ((x[l,] - means[i]) %*% t(x[l,] - means[i]))
+                    tempcov.var =tempcov.var + initcov.var}
+                cov.var[[i]] = sqrt(tempcov.var)
+            }
+        }
+    }
+    clust = rep(NA, nrow(posts))
+    for(i in 1:nrow(posts)){clust[i] = which(posts[i,] == max(posts[i,]), arr.ind = T)}
+    rownames(means) = NULL
+    return(list('Clusters' = clust, 'Means' = means, 'Covariance' = cov.var))
+}
+
+```
 ## Example EM Clustering
 
 
-# **Comparison of EM versus K-means clustering**
+### **Comparison of EM versus K-means clustering**
 ```{r}
 dataframe = select(iris, Sepal.Length, Sepal.Width)
 
-kmeans(dataframe, 3)
 em_clust(dataframe, 3)
+
+kmeans(dataframe, 3)
 ```
 
-**These results show that both EM and K-means are producing similar clustering means and clustering vectors; but, EM is also able to provide the covariance matrix for each cluster.**
+*These results show that both EM and K-means are producing similar clustering means and clustering vectors; but, EM is also able to provide the covariance matrix for each cluster.*
 
 
-# **Example of EM clustering in many dimensions**
+### **Example of EM clustering in many dimensions**
 ```{r}
 mtcars.cluster = em_clust(mtcars, 4)
 
@@ -57,7 +144,7 @@ mtcars.cluster$Clusters
 ```
 
 
-# **Example of EM clustering with a large dataset**
+### **Example of EM clustering with a large dataset**
 ```{r}
 dataframe2 = data.frame(x = c(rnorm(500, 20, 5), rnorm(500,1, 10)), 
                         y = c(rnorm(500, 40, 2),rnorm(500, 0, 9)))
@@ -67,9 +154,16 @@ ggplot(dataframe2) + geom_point(aes(x, y))
 ```
 
 
-# **Example of EM clustering in a single dimension with K-means comparison**
+### **Example of EM clustering in a single dimension**
 ```{r}
 em_clust(iris$Sepal.Length, 3)
-kmeans(iris$Sepal.Length, 3)
 plot(iris$Sepal.Length, pch = 20, ylab = '')
+```
+
+### **Speed check on a large dataset**
+```{r}
+tic()
+datacluster = em_clust(dataframe2, 5)
+datacluster$Means
+toc()
 ```
