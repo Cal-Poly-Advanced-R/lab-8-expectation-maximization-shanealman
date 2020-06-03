@@ -28,27 +28,48 @@ You can install the released version of clust431 from [CRAN](https://CRAN.R-proj
 install.packages("clust431")
 ```
 
-## Example
-
-This is a basic example which shows you how to solve a common problem:
-
-```{r example}
+```{r echo = T, include = F}
 library(clust431)
-## basic example code
+library(tidyverse)
+library(mvtnorm)
 ```
 
-What is special about using `README.Rmd` instead of just `README.md`? You can include R chunks like so:
+## Example EM Clustering
 
-```{r cars}
-summary(cars)
+
+# **Comparison of EM versus K-means clustering**
+```{r}
+dataframe = select(iris, Sepal.Length, Sepal.Width)
+
+kmeans(dataframe, 3)
+em_clust(dataframe, 3)
 ```
 
-You'll still need to render `README.Rmd` regularly, to keep `README.md` up-to-date.
+**These results show that both EM and K-means are producing similar clustering means and clustering vectors; but, EM is also able to provide the covariance matrix for each cluster.**
 
-You can also embed plots, for example:
 
-```{r pressure, echo = FALSE}
-plot(pressure)
+# **Example of EM clustering in many dimensions**
+```{r}
+mtcars.cluster = em_clust(mtcars, 4)
+
+mtcars.cluster$Means
+mtcars.cluster$Clusters
 ```
 
-In that case, don't forget to commit and push the resulting figure files, so they display on GitHub!
+
+# **Example of EM clustering with a large dataset**
+```{r}
+dataframe2 = data.frame(x = c(rnorm(500, 20, 5), rnorm(500,1, 10)), 
+                        y = c(rnorm(500, 40, 2),rnorm(500, 0, 9)))
+
+em_clust(dataframe2, 2)
+ggplot(dataframe2) + geom_point(aes(x, y))
+```
+
+
+# **Example of EM clustering in a single dimension with K-means comparison**
+```{r}
+em_clust(iris$Sepal.Length, 3)
+kmeans(iris$Sepal.Length, 3)
+plot(iris$Sepal.Length, pch = 20, ylab = '')
+```
