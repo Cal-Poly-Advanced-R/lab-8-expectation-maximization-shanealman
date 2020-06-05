@@ -16,7 +16,7 @@
 #'
 #' @export
 
-em_clust = function(x, k){
+em_clust = function(x, k, show_cluster_probs = F){
     priors = rep(1/k, k)
     x = as.matrix(x)
     if(ncol(x) > 1){
@@ -89,6 +89,9 @@ em_clust = function(x, k){
                 cov.var[[i]] = sqrt(tempcov.var)
             }
         }
+
+        if(show_cluster_probs == T){
+        print(matrix(priors))}
     }
     clust = rep(NA, nrow(posts))
     for(i in 1:nrow(posts)){clust[i] = which(posts[i,] == max(posts[i,]), arr.ind = T)}
